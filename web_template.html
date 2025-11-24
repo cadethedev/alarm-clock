@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Alarm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        /* Subtle grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+        }
+        
+        /* Radial glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(0,122,255,0.1) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+        }
+        
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 500px;
+            width: 100%;
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 30px 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 11px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 1px;
+        }
+        
+        .clock-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .clock {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: -4px;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .alarm-section {
+            margin: 30px 0 20px 0;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .alarm-section:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .alarm-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 15px;
+        }
+        
+        .alarm-time {
+            font-size: 42px;
+            font-weight: 900;
+            color: {{ALARM_COLOR}};
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .alarm-form {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+        }
+        
+        /* iOS-STYLE SCROLLABLE PICKER */
+        .time-picker-container {
+            width: 100%;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+        }
+        
+        /* Center highlight bar */
+        .time-picker-container::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 60px;
+            background: rgba(0, 122, 255, 0.1);
+            border-top: 2px solid rgba(0, 122, 255, 0.3);
+            border-bottom: 2px solid rgba(0, 122, 255, 0.3);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .picker-column {
+            width: 80px;
+            height: 180px;
+            position: relative;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                black 30%, 
+                black 70%, 
+                transparent 100%);
+            mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                black 30%, 
+                black 70%, 
+                transparent 100%);
+        }
+        
+        .picker-items {
+            position: absolute;
+            width: 100%;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: grab;
+        }
+        
+        .picker-items.dragging {
+            transition: none;
+            cursor: grabbing;
+        }
+        
+        .picker-item {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.3);
+            font-variant-numeric: tabular-nums;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        
+        .picker-item.active {
+            color: #007AFF;
+            transform: scale(1.1);
+        }
+        
+        .time-separator {
+            font-size: 48px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.3);
+            z-index: 2;
+        }
+        
+        .period-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .period-btn {
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .period-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .period-btn.active {
+            background: rgba(0, 122, 255, 0.4);
+            color: white;
+            border-color: rgba(0, 122, 255, 0.5);
+        }
+        
+        /* PERFECT GLASSMORPHISM BUTTON */
+        button {
+            width: 100%;
+            padding: 22px 36px;
+            font-size: 17px;
+            font-weight: 600;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.5px;
+            box-shadow: 
+                0 8px 32px 0 rgba(0, 0, 0, 0.37),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            position: relative;
+        }
+        
+        button:hover {
+            background: rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px 0 rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            background: rgba(0, 0, 0, 0.45);
+            box-shadow: 
+                0 4px 16px 0 rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="clock-container">
+            <div class="clock" id="clock">00:00:00</div>
+        </div>
+        
+        <div class="alarm-section">
+            <div class="alarm-label">Next Alarm</div>
+            <div class="alarm-time">{{ALARM_DISPLAY}}</div>
+            
+            <form class="alarm-form" action="/set_alarm" method="post">
+                <div class="time-picker-container">
+                    <!-- Hour Picker -->
+                    <div class="picker-column" id="hour-picker">
+                        <div class="picker-items" id="hour-items"></div>
+                    </div>
+                    
+                    <div class="time-separator">:</div>
+                    
+                    <!-- Minute Picker -->
+                    <div class="picker-column" id="minute-picker">
+                        <div class="picker-items" id="minute-items"></div>
+                    </div>
+                </div>
+                
+                <button type="submit">Set Alarm</button>
+
+                <input type="hidden" name="hour" id="hour-input" value="7">
+                <input type="hidden" name="minute" id="minute-input" value="0">
+            </form>
+
+            <form action="/disable_alarm" method="post" style="margin-top: 12px;">
+                <button type="submit" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15);">Disable Alarm</button>
+            </form>
+        </div>
+
+        <!-- LED Color Test Section -->
+        <div class="alarm-section" style="margin-top: 20px;">
+            <div class="alarm-label">LED Test Colors</div>
+
+            <form action="/test_color" method="post" style="margin-top: 15px;">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div>
+                        <label style="font-size: 12px; color: rgba(255,255,255,0.6);">Red (0-255)</label>
+                        <input type="range" name="red" min="0" max="255" value="3" id="red-slider"
+                               style="width: 100%; accent-color: #ff0000;">
+                        <span id="red-value" style="font-size: 14px; color: #fff;">3</span>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 12px; color: rgba(255,255,255,0.6);">Green (0-255)</label>
+                        <input type="range" name="green" min="0" max="255" value="0" id="green-slider"
+                               style="width: 100%; accent-color: #00ff00;">
+                        <span id="green-value" style="font-size: 14px; color: #fff;">0</span>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 12px; color: rgba(255,255,255,0.6);">Blue (0-255)</label>
+                        <input type="range" name="blue" min="0" max="255" value="0" id="blue-slider"
+                               style="width: 100%; accent-color: #0066ff;">
+                        <span id="blue-value" style="font-size: 14px; color: #fff;">0</span>
+                    </div>
+
+                    <div style="padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: center;">
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">PREVIEW</div>
+                        <div id="color-preview" style="width: 100%; height: 60px; border-radius: 8px; background: rgb(3, 0, 0);"></div>
+                    </div>
+                </div>
+
+                <button type="submit" style="margin-top: 15px;">Apply to LEDs</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let draggingPicker = null;
+        
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = hours + ':' + minutes + ':' + seconds;
+        }
+        
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        // Create scrollable picker
+        class ScrollPicker {
+            constructor(containerId, itemsId, values, defaultValue) {
+                this.container = document.getElementById(containerId);
+                this.items = document.getElementById(itemsId);
+                this.values = values;
+                this.currentIndex = values.indexOf(defaultValue);
+                this.itemHeight = 60;
+                this.isDragging = false;
+                this.startY = 0;
+                this.startTransform = 0;
+                
+                this.init();
+            }
+            
+            init() {
+                // Create items
+                this.values.forEach((value, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'picker-item';
+                    item.textContent = String(value).padStart(2, '0');
+                    item.dataset.index = index;
+                    this.items.appendChild(item);
+                });
+                
+                // Set initial position
+                this.updatePosition(false);
+                this.updateActiveItem();
+                
+                // Add event listeners
+                this.items.addEventListener('mousedown', this.onStart.bind(this));
+                this.items.addEventListener('touchstart', this.onStart.bind(this));
+                
+                document.addEventListener('mousemove', this.onMove.bind(this));
+                document.addEventListener('touchmove', this.onMove.bind(this));
+                
+                document.addEventListener('mouseup', this.onEnd.bind(this));
+                document.addEventListener('touchend', this.onEnd.bind(this));
+                
+                // Wheel support
+                this.container.addEventListener('wheel', this.onWheel.bind(this));
+            }
+            
+            onStart(e) {
+                this.isDragging = true;
+                this.items.classList.add('dragging');
+                this.startY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+                this.startTransform = this.getCurrentTransform();
+            }
+            
+            onMove(e) {
+                if (!this.isDragging) return;
+                e.preventDefault();
+                
+                const currentY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+                const deltaY = currentY - this.startY;
+                const newTransform = this.startTransform + deltaY;
+                
+                this.items.style.transform = `translateY(${newTransform}px)`;
+            }
+            
+            onEnd() {
+                if (!this.isDragging) return;
+                this.isDragging = false;
+                this.items.classList.remove('dragging');
+                
+                // Snap to whichever number is most centered between the lines
+                const transform = this.getCurrentTransform();
+                // The center of the picker is at offset 60 (one item height)
+                // Calculate which item is closest to center
+                const centerOffset = 60;
+                const centerPosition = -transform + centerOffset;
+                const index = Math.round(centerPosition / this.itemHeight);
+                
+                this.currentIndex = Math.max(0, Math.min(index, this.values.length - 1));
+                
+                this.updatePosition(true);
+                this.updateActiveItem();
+            }
+            
+            onWheel(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 1 : -1;
+                this.currentIndex = Math.max(0, Math.min(this.currentIndex + delta, this.values.length - 1));
+                this.updatePosition(true);
+                this.updateActiveItem();
+            }
+            
+            getCurrentTransform() {
+                const style = window.getComputedStyle(this.items);
+                const matrix = style.transform;
+                if (matrix === 'none') return 0;
+                const values = matrix.split('(')[1].split(')')[0].split(',');
+                return parseFloat(values[5] || values[13] || 0);
+            }
+            
+            updatePosition(animate) {
+                const offset = 60; // Center in viewport
+                const transform = offset - (this.currentIndex * this.itemHeight);
+                if (animate) {
+                    this.items.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                } else {
+                    this.items.style.transition = 'none';
+                }
+                this.items.style.transform = `translateY(${transform}px)`;
+            }
+            
+            updateActiveItem() {
+                const items = this.items.querySelectorAll('.picker-item');
+                items.forEach((item, index) => {
+                    item.classList.toggle('active', index === this.currentIndex);
+                });
+            }
+            
+            getValue() {
+                return this.values[this.currentIndex];
+            }
+        }
+        
+        // Initialize pickers
+        const hours = Array.from({length: 12}, (_, i) => i + 1);
+        const minutes = Array.from({length: 60}, (_, i) => i);
+        
+        const hourPicker = new ScrollPicker('hour-picker', 'hour-items', hours, {{DEFAULT_HOUR}});
+        const minutePicker = new ScrollPicker('minute-picker', 'minute-items', minutes, {{DEFAULT_MINUTE}});
+        
+        // Always AM - no PM allowed!
+        const period = 'AM';
+        
+        // Update hidden inputs before form submits
+        document.querySelector('form').addEventListener('submit', function(e) {
+            document.getElementById('hour-input').value = hourPicker.getValue();
+            document.getElementById('minute-input').value = minutePicker.getValue();
+        });
+
+        // Color slider preview
+        const redSlider = document.getElementById('red-slider');
+        const greenSlider = document.getElementById('green-slider');
+        const blueSlider = document.getElementById('blue-slider');
+        const colorPreview = document.getElementById('color-preview');
+
+        function updatePreview() {
+            const r = redSlider.value;
+            const g = greenSlider.value;
+            const b = blueSlider.value;
+
+            document.getElementById('red-value').textContent = r;
+            document.getElementById('green-value').textContent = g;
+            document.getElementById('blue-value').textContent = b;
+
+            colorPreview.style.background = `rgb(${r}, ${g}, ${b})`;
+        }
+
+        redSlider.addEventListener('input', updatePreview);
+        greenSlider.addEventListener('input', updatePreview);
+        blueSlider.addEventListener('input', updatePreview);
+    </script>
+</body>
+</html>
