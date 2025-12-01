@@ -25,8 +25,7 @@ LED_CHANNEL = 0
 BUTTON_PIN = 12     # GPIO 12 (Pin 32)
 
 # Settings
-ALARM_FILE = '/home/cadev/alarm_settings.json'
-TEST_COLOR_FILE = '/home/cadev/test_color.json'
+ALARM_FILE = '/home/cade/alarm_settings.json'
 SHORT_PRESS_TIME = 1.0   # 1 second to enter setup
 DISABLE_PRESS_TIME = 5.0 # 5 seconds to disable alarm
 
@@ -47,7 +46,6 @@ strip.begin()
 # Global state
 current_state = STATE_IDLE
 alarm_active = False
-last_test_color_time = 0
 
 def clear_leds():
     """Turn all LEDs off"""
@@ -55,30 +53,6 @@ def clear_leds():
         strip.setPixelColor(i, Color(0, 0, 0))
     strip.show()
 
-def check_test_color():
-    """Check if there's a new test color to apply"""
-    global last_test_color_time
-
-    try:
-        if os.path.exists(TEST_COLOR_FILE):
-            with open(TEST_COLOR_FILE, 'r') as f:
-                data = json.load(f)
-
-            # Only apply if timestamp is newer
-            if data['timestamp'] != last_test_color_time:
-                last_test_color_time = data['timestamp']
-                r, g, b = data['r'], data['g'], data['b']
-
-                # Apply test color to all LEDs
-                for i in range(LED_COUNT):
-                    strip.setPixelColor(i, Color(r, g, b))
-                strip.show()
-                print(f"✓ Test color applied: RGB({r}, {g}, {b})")
-                return True
-    except Exception as e:
-        print(f"Error applying test color: {e}")
-
-    return False
 
 def load_alarm():
     """Load alarm settings from file"""
@@ -116,51 +90,64 @@ def disable_alarm():
         time.sleep(0.15)
 
 def sunrise_animation():
-    """20-minute sunrise animation: 15min dark orange → 5min ramp to warm light"""
+    """20-minute sunrise animation: 15 min (1→8 red), 5 min (rest of sequence)"""
     global alarm_active
     alarm_active = True
 
-    print("🌅 Starting sunrise animation...")
+    print("Starting sunrise animation...")
 
-    # 20 minutes = 1200 seconds
-    duration = 1200
-    steps = 200
-    delay = duration / steps
+    # Phase 1: 15 minutes - RGB(1, 0, 0) → RGB(8, 0, 0)
+    phase1_duration = 900  # 15 minutes in seconds
+    phase1_steps = 150
+    phase1_delay = phase1_duration / phase1_steps
 
-    for step in range(steps):
+    for step in range(phase1_steps):
         if not alarm_active:
             print("Alarm stopped by button")
-            break
+            return
 
-        # Progress from 0 to 1
-        progress = step / steps
+        # Progress from 0 to 1 for phase 1
+        progress = step / phase1_steps
 
-        if progress < 0.75:
-            # First 15 minutes: Gradual ramp from dim to slightly brighter orange
-            # Previous constant value: (3, 0, 0) - good starting point
-            ramp_15min = progress / 0.75  # 0 to 1 over first 15 minutes
-            r = int(3 + (15 * ramp_15min))  # Ramp from 3 to 18
-            g = int(0 + (5 * ramp_15min))   # Ramp from 0 to 5
-            b = 0
-        else:
-            # Last 5 minutes: Smooth ramp to warm light at 40% brightness
-            ramp_progress = (progress - 0.75) / 0.25
-            # Target: warm white at 40% (254, 255, 236 at 40%)
-            # Start from end of 15min ramp: (18, 5, 0)
-            r = int(18 + (254 * 0.4 - 18) * ramp_progress)
-            g = int(5 + (255 * 0.4 - 5) * ramp_progress)
-            b = int(0 + (236 * 0.4) * ramp_progress)
+        # Red ramps from 1 to 8
+        r = int(1 + (7 * progress))
+
+        # Set all LEDs to current color
+        for i in range(LED_COUNT):
+            strip.setPixelColor(i, Color(r, 0, 0))
+        strip.show()
+
+        time.sleep(phase1_delay)
+
+    # Phase 2: 5 minutes - Complete the rest of the light sequence
+    # RGB(8, 0, 0) → RGB(50, 15, 6)
+    phase2_duration = 300  # 5 minutes in seconds
+    phase2_steps = 50
+    phase2_delay = phase2_duration / phase2_steps
+
+    for step in range(phase2_steps):
+        if not alarm_active:
+            print("Alarm stopped by button")
+            return
+
+        # Progress from 0 to 1 for phase 2
+        progress = step / phase2_steps
+
+        # Ramp from RGB(8, 0, 0) to RGB(50, 15, 6)
+        r = int(8 + (50 - 8) * progress)
+        g = int(0 + (15 - 0) * progress)
+        b = int(0 + (6 - 0) * progress)
 
         # Set all LEDs to current color
         for i in range(LED_COUNT):
             strip.setPixelColor(i, Color(r, g, b))
         strip.show()
 
-        time.sleep(delay)
+        time.sleep(phase2_delay)
 
-    # Hold final warm light at 40%
+    # Hold final color: RGB(50, 15, 6)
     for i in range(LED_COUNT):
-        strip.setPixelColor(i, Color(int(254*0.4), int(255*0.4), int(236*0.4)))
+        strip.setPixelColor(i, Color(50, 15, 6))
     strip.show()
 
     alarm_active = False
@@ -381,10 +368,6 @@ def main():
 
     try:
         while True:
-            # Check for test color requests (only when idle)
-            if current_state == STATE_IDLE:
-                check_test_color()
-
             if current_state == STATE_IDLE:
                 # Check for alarm trigger
                 if check_alarm() and not alarm_active:

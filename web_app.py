@@ -7,8 +7,7 @@ os.system('vcgencmd display_power 0')
 
 app = Flask(__name__)
 
-ALARM_FILE = '/home/cadev/alarm_settings.json'
-TEST_COLOR_FILE = '/home/cadev/test_color.json'
+ALARM_FILE = '/home/cade/alarm_settings.json'
 
 def load_alarm_settings():
     """Load alarm settings from file"""
@@ -69,20 +68,6 @@ def disable_alarm():
     settings['enabled'] = False
     # Keep the time, just disable it
     save_alarm_settings(settings)
-    return redirect('/')
-
-@app.route('/test_color', methods=['POST'])
-def test_color():
-    """Save test color for alarm system to apply"""
-    r = int(request.form['red'])
-    g = int(request.form['green'])
-    b = int(request.form['blue'])
-
-    # Write test color to file - alarm system will read and apply it
-    test_data = {'r': r, 'g': g, 'b': b, 'timestamp': os.times().elapsed}
-    with open(TEST_COLOR_FILE, 'w') as f:
-        json.dump(test_data, f)
-
     return redirect('/')
 
 if __name__ == '__main__':
