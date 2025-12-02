@@ -307,11 +307,18 @@ def check_alarm():
             if trigger_hour < 1:
                 trigger_hour = 12
 
-        # Format as time string
-        trigger_time = f"{trigger_hour:02d}:{trigger_minute:02d} AM"
-        current_time = now.strftime("%I:%M %p")
+        # Get current hour and minute
+        current_hour = now.hour
+        if current_hour == 0:
+            current_hour = 12
+        elif current_hour > 12:
+            current_hour -= 12
+        current_minute = now.minute
 
-        return current_time == trigger_time
+        # Check if current time matches trigger time (only check AM hours)
+        if now.hour < 12:  # AM only
+            return current_hour == trigger_hour and current_minute == trigger_minute
+        return False
     except:
         return False
 
@@ -374,8 +381,15 @@ def main():
                     print("⏰ ALARM TRIGGERED!")
                     current_state = STATE_ALARM
                     sunrise_animation()
-                    clear_leds()
-                    current_state = STATE_IDLE
+                    # Don't clear LEDs - keep them on until button pressed
+                    # Wait for button press to turn off
+                    while current_state == STATE_ALARM:
+                        handle_alarm_button()
+                        if not alarm_active:
+                            clear_leds()
+                            current_state = STATE_IDLE
+                            break
+                        time.sleep(0.05)
                     continue
 
                 # Handle button press (setup or disable)
@@ -385,6 +399,7 @@ def main():
                 # Handle button during alarm
                 handle_alarm_button()
                 if not alarm_active:
+                    clear_leds()
                     current_state = STATE_IDLE
 
             time.sleep(0.05)
