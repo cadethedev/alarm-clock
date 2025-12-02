@@ -1,0 +1,5 @@
+# Sensitive information
+info.txt
+
+# Claude Code directory
+.claude/
